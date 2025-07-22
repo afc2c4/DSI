@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Validador de Arquivo HTML</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f5f5f5;
+      padding-top: 50px;
+    }
+    .container {
+      max-width: 900px;
+    }
+    .resultado {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+    iframe {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      margin-top: 20px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1 class="text-center mb-4">🔍 Verificador de Arquivo HTML com Execução</h1>
+
+  <div class="mb-3">
+    <label for="arquivoHtml" class="form-label">Selecione um arquivo .html</label>
+    <input class="form-control" type="file" id="arquivoHtml" accept=".html">
+  </div>
+
+  <button class="btn btn-primary" onclick="verificarArquivo()">Verificar HTML</button>
+
+  <div id="resultado" class="resultado d-none mt-4"></div>
+
+  <h5 class="mt-4">👁️ Visualização do HTML carregado:</h5>
+  <iframe id="preview" class="mb-4"></iframe>
+</div>
+
+<script>
+const tagsObrigatorias = ["h1", "strong", "em", "u", "mark", "br", "hr"];
+const tagsObsoletas = ["b", "i", "center", "font"];
+const tagsAutoFechadas = ["br", "hr"];
+
+function verificarArquivo() {
+  const input = document.getElementById("arquivoHtml");
+  const resultadoDiv = document.getElementById("resultado");
+  const iframe = document.getElementById("preview");
+
+  resultadoDiv.classList.add("d-none");
+  resultadoDiv.textContent = "";
+
+  if (!input.files.length) {
+    alert("Por favor, selecione um arquivo HTML.");
+    return;
+  }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function (event) {
+    const conteudo = event.target.result;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(conteudo, "text/html");
+    const linhas = conteudo.split('\n');
+
+    const blob = new Blob([conteudo], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
+
+    let resultado = `📄 Arquivo analisado: ${file.name}\n\n`;
+
+    // ⚠️ Verificação de tags mal fechadas COM LINHA
+    const tagsCriticas = ["h1", "h2", "strong", "em", "u", "mark", "p"];
+    tagsCriticas.forEach(tag => {
+      let totalAberturas = 0;
+      let totalFechamentos = 0;
+      let linhasComProblema = [];
+
+      const regexAbertura = new RegExp(`<${tag}[^>]*>`, "gi");
+      const regexFechamento = new RegExp(`</${tag}>`, "gi");
+
+      linhas.forEach((linha, index) => {
+        const aberturas = (linha.match(regexAbertura) || []).length;
+        const fechamentos = (linha.match(regexFechamento) || []).length;
+
+        totalAberturas += aberturas;
+        totalFechamentos += fechamentos;
+
+        if (aberturas > fechamentos || fechamentos > aberturas) {
+          linhasComProblema.push(`linha ${index + 1}`);
+        }
+      });
+
+      if (totalAberturas > totalFechamentos) {
+        resultado += `❌ ERRO DE IMPLEMENTAÇÃO: Tag <${tag}> foi aberta ${totalAberturas}x e fechada ${totalFechamentos}x. Possível erro em ${linhasComProblema.join(', ')}.\n`;
+      } else if (totalFechamentos > totalAberturas) {
+        resultado += `❌ ERRO DE IMPLEMENTAÇÃO: Tag </${tag}> apareceu mais vezes que <${tag}>. Possível erro em ${linhasComProblema.join(', ')}.\n`;
+      }
+    });
+
+    // 🔍 Verificação de tags obrigatórias
+    tagsObrigatorias.forEach(tag => {
+      const elementos = doc.getElementsByTagName(tag);
+
+      if (tagsAutoFechadas.includes(tag)) {
+        if (elementos.length > 0) {
+          resultado += `✅ A tag <${tag}> está presente e bem utilizada.\n`;
+        } else {
+          resultado += `❌ A tag <${tag}> está faltando.\n`;
+        }
+        return;
+      }
+
+      const regexAbertura = new RegExp(`<${tag}[^>]*>`, "gi");
+      const regexFechamento = new RegExp(`</${tag}>`, "gi");
+      const aberturas = (conteudo.match(regexAbertura) || []).length;
+      const fechamentos = (conteudo.match(regexFechamento) || []).length;
+      const erroDeImplementacao = aberturas !== fechamentos;
+
+      if (elementos.length > 0 && !erroDeImplementacao) {
+        let conteudoValido = false;
+        for (let el of elementos) {
+          if (el.textContent.trim()) {
+            conteudoValido = true;
+            break;
+          }
+        }
+        if (conteudoValido) {
+          resultado += `✅ A tag <${tag}> está presente e bem utilizada.\n`;
+        } else {
+          resultado += `⚠️ A tag <${tag}> foi encontrada, mas está vazia ou mal utilizada.\n`;
+        }
+      } else if (elementos.length > 0 && erroDeImplementacao) {
+        resultado += `⚠️ A tag <${tag}> está presente, mas com erro de implementação (ex: falta fechamento).\n`;
+      } else {
+        resultado += `❌ A tag <${tag}> está faltando.\n`;
+      }
+    });
+
+    // 🧱 Verificação de tags obsoletas
+    tagsObsoletas.forEach(tag => {
+      const count = doc.getElementsByTagName(tag).length;
+      if (count > 0) {
+        resultado += `⚠️ Uso de tag obsoleta: <${tag}> encontrada ${count}x.\n`;
+      }
+    });
+
+    // 📏 Hierarquia de títulos
+    const titulos = [...doc.querySelectorAll("h1, h2, h3, h4, h5, h6")].map(t => parseInt(t.tagName[1]));
+    for (let i = 1; i < titulos.length; i++) {
+      if (titulos[i] > titulos[i - 1] + 1) {
+        resultado += `⚠️ Hierarquia quebrada entre <h${titulos[i - 1]}> e <h${titulos[i]}>\n`;
+      }
+    }
+
+    // 🔄 Tags redundantes
+    if (conteudo.match(/<strong>\s*<strong>/i)) {
+      resultado += `⚠️ Uso redundante de <strong> dentro de <strong>\n`;
+    }
+    if (conteudo.match(/<em>\s*<em>/i)) {
+      resultado += `⚠️ Uso redundante de <em> dentro de <em>\n`;
+    }
+
+    // 📐 Elementos block dentro de inline
+    const inlineContainers = ["u", "em", "strong", "mark"];
+    const blockTags = ["div", "p", "section", "article"];
+    inlineContainers.forEach(tag => {
+      const elements = doc.getElementsByTagName(tag);
+      for (let el of elements) {
+        for (let child of el.children) {
+          if (blockTags.includes(child.tagName.toLowerCase())) {
+            resultado += `❌ Tag <${tag}> contém elemento <${child.tagName.toLowerCase()}>. Isso é estruturalmente incorreto.\n`;
+          }
+        }
+      }
+    });
+
+    // 💅 Uso visual sem semântica
+    const brCount = (conteudo.match(/<br\s*\/?>/gi) || []).length;
+    if (brCount >= 3) {
+      resultado += `⚠️ Uso excessivo de <br> para espaçamento. Use CSS (margins).\n`;
+    }
+
+    // 🛑 Verificação de tags inválidas ou desconhecidas
+    const tagsValidas = new Set([
+      "html", "head", "body", "title", "meta", "style", "script", "link", "div", "span",
+      "h1", "h2", "h3", "h4", "h5", "h6", "p", "strong", "em", "u", "mark", "br", "hr",
+      "ul", "ol", "li", "table", "thead", "tbody", "tr", "td", "th",
+      "form", "input", "button", "label", "select", "option", "textarea", "img", "a",
+      "section", "article", "footer", "header", "nav", "main"
+    ]);
+
+    const regexTags = /<\s*\/?\s*([a-zA-Z0-9\-]+)[^>]*>/g;
+    let match;
+    const tagsEncontradas = new Set();
+
+    while ((match = regexTags.exec(conteudo)) !== null) {
+      const tag = match[1].toLowerCase();
+      if (
+        !tagsValidas.has(tag) &&
+        !tagsObsoletas.includes(tag) &&
+        !tagsAutoFechadas.includes(tag)
+      ) {
+        tagsEncontradas.add(tag);
+      }
+    }
+
+    tagsEncontradas.forEach(tag => {
+      resultado += `❌ Tag inválida ou desconhecida detectada: <${tag}>\n`;
+    });
+
+    resultadoDiv.textContent = resultado;
+    resultadoDiv.classList.remove("d-none");
+  };
+
+  reader.onerror = function () {
+    alert("Erro ao ler o arquivo.");
+  };
+
+  reader.readAsText(file);
+}
+</script>
+
+</body>
+</html>

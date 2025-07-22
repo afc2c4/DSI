@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste com erros</title>
+  <style>
+    body { font-family: Arial; }
+  </style>
+</head>
+<body>
+
+<!-- ❌ Erro 1: <h1> sem fechamento -->
+<h1>Minha Primeira Página Web<h1>
+
+<!-- ❌ Erro 2: Uso de tag obsoleta -->
+<font color="red">Texto com cor usando tag obsoleta</font>
+
+<!-- ❌ Erro 3: <strong> redundante -->
+<strong><strong>Importante</strong></strong>
+
+<!-- ❌ Erro 4: <div> dentro de <em> (estruturalmente inválido) -->
+<em><div>Texto estruturado errado</div></em>
+
+<!-- ✅ <br> e <hr> estão corretos, mas em excesso para teste -->
+<br><br><br>
+
+<hr>
+
+<!-- ❌ Erro 5: tag <u> vazia -->
+<u>    </u>
+
+<!-- ❌ Erro 6: hierarquia quebrada (h3 antes de h2) -->
+<h3>Subseção sem H2 anterior</h3>
+
+<!-- ❌ Erro 7: <p> sem fechamento -->
+<p>Parágrafo sem fechamento
+
+<!-- ❌ Erro 8: Tag semântica usada só para visual -->
+<u><i>Texto sublinhado e itálico apenas visual</i></u>
+
+<!-- ❌ Erro 9: tag inexistente (erro de digitação ou custom tag) -->
+<negrito>Isso não existe</negrito>
+
+<!-- ❌ Erro 10: excesso de uso visual com <center> obsoleta -->
+<center><h2>Centralizado de forma obsoleta</h2></center>
+
+<!-- ❌ Erro 11: <mark> sem conteúdo -->
+<mark></mark>
+
+<!-- ❌ Erro 12: tag <em> com fechamento sem abertura -->
+</em>
+
+</body>
+</html>
