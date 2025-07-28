@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>🔍 Verificador de HTML5 Educacional</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f5f5f5;
+      padding-top: 50px;
+    }
+    .container {
+      max-width: 900px;
+    }
+    .resultado {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+    iframe {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      margin-top: 20px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1 class="text-center mb-4">🔍 Verificador de HTML5 Educacional</h1>
+
+  <div class="mb-3">
+    <label for="arquivoHtml" class="form-label">Selecione um arquivo .html</label>
+    <input class="form-control" type="file" id="arquivoHtml" accept=".html">
+  </div>
+
+  <button class="btn btn-primary" onclick="verificarArquivo()">Verificar HTML</button>
+
+  <div id="resultado" class="resultado d-none mt-4"></div>
+
+  <h5 class="mt-4">👁️ Visualização do HTML carregado:</h5>
+  <iframe id="preview" class="mb-4"></iframe>
+</div>
+
+<script>
+const tagsObrigatorias = ["h1", "strong", "em", "u", "mark", "br", "hr"];
+const tagsObsoletas = ["b", "i", "center", "font"];
+const tagsAutoFechadas = ["br", "hr"];
+
+function verificarArquivo() {
+  const input = document.getElementById("arquivoHtml");
+  const resultadoDiv = document.getElementById("resultado");
+  const iframe = document.getElementById("preview");
+
+  resultadoDiv.classList.add("d-none");
+  resultadoDiv.textContent = "";
+
+  if (!input.files.length) {
+    alert("Por favor, selecione um arquivo HTML.");
+    return;
+  }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function (event) {
+    const conteudo = event.target.result;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(conteudo, "text/html");
+    const linhas = conteudo.split('\n');
+
+    const blob = new Blob([conteudo], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
+
+    let resultado = `📄 Arquivo analisado: ${file.name}\n\n`;
+
+    const tagsCriticas = ["h1", "h2", "strong", "em", "u", "mark", "p"];
+    tagsCriticas.forEach(tag => {
+      let totalAberturas = 0;
+      let totalFechamentos = 0;
+      let linhasComProblema = [];
+
+      const regexAbertura = new RegExp(`<${tag}[^>]*>`, "gi");
+      const regexFechamento = new RegExp(`</${tag}>`, "gi");
+
+      linhas.forEach((linha, index) => {
+        const aberturas = (linha.match(regexAbertura) || []).length;
+        const fechamentos = (linha.match(regexFechamento) || []).length;
+
+        totalAberturas += aberturas;
+        totalFechamentos += fechamentos;
+
+        if (aberturas > fechamentos || fechamentos > aberturas) {
+          linhasComProblema.push(`linha ${index + 1}`);
+        }
+      });
+
+      if (totalAberturas > totalFechamentos) {
+        resultado += `❌ ERRO: Tag <${tag}> foi aberta ${totalAberturas}x e fechada ${totalFechamentos}x. Verificar ${linhasComProblema.join(', ')}.\n`;
+      } else if (totalFechamentos > totalAberturas) {
+        resultado += `❌ ERRO: Tag </${tag}> apareceu mais vezes que <${tag}>. Verificar ${linhasComProblema.join(', ')}.\n`;
+      }
+    });
+
+    tagsObrigatorias.forEach(tag => {
+      const elementos = doc.getElementsByTagName(tag);
+      if (tagsAutoFechadas.includes(tag)) {
+        resultado += elementos.length > 0
+          ? `✅ A tag <${tag}> está presente.\n`
+          : `❌ A tag <${tag}> está faltando.\n`;
+        return;
+      }
+
+      const regexAbertura = new RegExp(`<${tag}[^>]*>`, "gi");
+      const regexFechamento = new RegExp(`</${tag}>`, "gi");
+      const aberturas = (conteudo.match(regexAbertura) || []).length;
+      const fechamentos = (conteudo.match(regexFechamento) || []).length;
+      const erro = aberturas !== fechamentos;
+
+      if (elementos.length > 0 && !erro) {
+        let conteudoValido = false;
+        for (let el of elementos) {
+          if (el.textContent.trim()) conteudoValido = true;
+        }
+        resultado += conteudoValido
+          ? `✅ A tag <${tag}> está presente e bem utilizada.\n`
+          : `⚠️ A tag <${tag}> está vazia ou sem conteúdo.\n`;
+      } else if (elementos.length > 0 && erro) {
+        resultado += `⚠️ A tag <${tag}> possui erro de implementação.\n`;
+      } else {
+        resultado += `❌ A tag <${tag}> está faltando.\n`;
+      }
+    });
+
+    tagsObsoletas.forEach(tag => {
+      const count = doc.getElementsByTagName(tag).length;
+      if (count > 0) {
+        resultado += `⚠️ Uso de tag obsoleta: <${tag}> (${count}x).\n`;
+      }
+    });
+
+    const header = doc.querySelector("body > header");
+    const main = doc.querySelector("body > main");
+    const sections = doc.querySelectorAll("section");
+
+    if (header) {
+      resultado += "✅ <header> encontrado diretamente dentro do <body>.\n";
+    } else {
+      resultado += "⚠️ <header> ausente ou fora da posição ideal.\n";
+    }
+
+    if (main) {
+      resultado += "✅ <main> está presente.\n";
+      const mainParent = main.parentElement.tagName.toLowerCase();
+      if (mainParent !== "body") {
+        resultado += `❌ <main> está dentro de <${mainParent}>. O ideal é estar diretamente em <body>.\n`;
+      }
+    } else {
+      resultado += "❌ <main> está ausente.\n";
+    }
+
+    const mains = doc.getElementsByTagName("main");
+    if (mains.length > 1) {
+      resultado += `❌ Mais de um <main> encontrado (${mains.length}). Só pode haver um por página.\n`;
+    }
+
+    if (sections.length > 0) {
+      let todasDentroDeMain = true;
+      sections.forEach(section => {
+        let ancestor = section.parentElement;
+        let dentroDoMain = false;
+        while (ancestor) {
+          if (ancestor.tagName.toLowerCase() === "main") {
+            dentroDoMain = true;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+        if (!dentroDoMain) {
+          todasDentroDeMain = false;
+        }
+      });
+
+      if (todasDentroDeMain) {
+        resultado += "✅ Todas as <section> estão corretamente dentro de <main>.\n";
+      } else {
+        resultado += "⚠️ Algumas <section> não estão dentro de <main>.\n";
+      }
+    } else {
+      resultado += "⚠️ Nenhuma <section> encontrada.\n";
+    }
+
+    if (conteudo.includes("navigator.geolocation")) {
+      resultado += "✅ API de Geolocalização detectada no script.\n";
+    } else {
+      resultado += "⚠️ Nenhum uso da API de Geolocalização detectado.\n";
+    }
+
+    const dragTags = conteudo.match(/draggable\s*=\s*["']?true["']?/gi);
+    const dragListeners = conteudo.includes("dragstart") && conteudo.includes("drop");
+    if (dragTags && dragTags.length >= 1 && dragListeners) {
+      resultado += `✅ Drag and Drop detectado com ${dragTags.length} elemento(s) arrastável(is).\n`;
+    } else if (dragTags) {
+      resultado += "⚠️ 'draggable=true' encontrado, mas sem script completo de Drag and Drop.\n";
+    } else {
+      resultado += "⚠️ Nenhuma funcionalidade de Drag and Drop detectada.\n";
+    }
+
+    if (doc.querySelector("canvas")) {
+      if (conteudo.includes("getContext") && conteudo.includes("canvas.addEventListener")) {
+        resultado += "✅ Canvas presente e com script funcional detectado.\n";
+      } else {
+        resultado += "⚠️ Canvas presente, mas sem manipulação via script.\n";
+      }
+    } else {
+      resultado += "⚠️ Nenhum elemento <canvas> encontrado.\n";
+    }
+
+    resultadoDiv.textContent = resultado;
+    resultadoDiv.classList.remove("d-none");
+  };
+
+  reader.onerror = function () {
+    alert("Erro ao ler o arquivo.");
+  };
+
+  reader.readAsText(file);
+}
+</script>
+</body>
+</html>
