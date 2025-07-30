@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Verificador HTML Aprimorado</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f5f5f5;
+      padding-top: 50px;
+    }
+    .container {
+      max-width: 900px;
+    }
+    .resultado {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 20px;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+    iframe {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      margin-top: 20px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1 class="text-center mb-4">🧪 Verificador HTML com Feedback Educacional</h1>
+
+  <div class="mb-3">
+    <label for="arquivoHtml" class="form-label">Selecione um arquivo .html</label>
+    <input class="form-control" type="file" id="arquivoHtml" accept=".html">
+  </div>
+
+  <button class="btn btn-success" onclick="verificarArquivo()">Verificar HTML</button>
+
+  <div id="resultado" class="resultado d-none mt-4"></div>
+
+  <h5 class="mt-4">👁️ Visualização do HTML carregado:</h5>
+  <iframe id="preview" class="mb-4"></iframe>
+</div>
+
+<script>
+const tagsObrigatorias = ["h1", "strong", "em", "u", "mark", "br", "hr", "small"];
+const tagsObsoletas = ["b", "i", "center", "font"];
+const tagsAutoFechadas = ["br", "hr"];
+
+function verificarArquivo() {
+  const input = document.getElementById("arquivoHtml");
+  const resultadoDiv = document.getElementById("resultado");
+  const iframe = document.getElementById("preview");
+  resultadoDiv.classList.add("d-none");
+  resultadoDiv.textContent = "";
+  if (!input.files.length) return alert("Por favor, selecione um arquivo HTML.");
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function (event) {
+    const conteudo = event.target.result;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(conteudo, "text/html");
+    const linhas = conteudo.split('\n');
+    const blob = new Blob([conteudo], { type: "text/html" });
+    iframe.src = URL.createObjectURL(blob);
+
+    let resultado = `📄 Arquivo analisado: ${file.name}\n\n`;
+    let nota = 10;
+    let checklistErros = 0;
+
+    // Verificação de tags obrigatórias
+    resultado += "✅ Verificação de Tags Obrigatórias:\n";
+    tagsObrigatorias.forEach(tag => {
+      const elementos = doc.getElementsByTagName(tag);
+      const quantidade = elementos.length;
+
+      if (quantidade === 0) {
+        resultado += `❌ A tag <${tag}> está faltando.\n`;
+        nota -= 1;
+        checklistErros++;
+      } else {
+        resultado += `✔️ <${tag}> encontrada ${quantidade} vez(es).\n`;
+      }
+    });
+
+    // Tags obsoletas
+    let tagsObsoletasUsadas = [];
+    tagsObsoletas.forEach(tag => {
+      if (doc.getElementsByTagName(tag).length > 0) {
+        tagsObsoletasUsadas.push(`<${tag}>`);
+        nota -= 0.5;
+        checklistErros++;
+      }
+    });
+    if (tagsObsoletasUsadas.length > 0) {
+      resultado += `\n⚠️ Tags obsoletas encontradas: ${tagsObsoletasUsadas.join(", ")}\n`;
+    }
+
+    // Hierarquia de títulos
+    const titulos = [...doc.querySelectorAll("h1, h2, h3, h4, h5, h6")].map(t => parseInt(t.tagName[1]));
+    for (let i = 1; i < titulos.length; i++) {
+      if (titulos[i] > titulos[i - 1] + 1) {
+        resultado += `\n⚠️ Hierarquia quebrada entre <h${titulos[i - 1]}> e <h${titulos[i]}>\n`;
+        nota -= 0.5;
+        checklistErros++;
+      }
+    }
+
+    // Feedback final
+    resultado += `\n🧾 Nota final: ${Math.max(0, nota).toFixed(1)}/10\n`;
+    if (checklistErros === 0) {
+      resultado += "🎉 Parabéns! Seu HTML está bem estruturado!\n";
+    } else {
+      resultado += "📚 Recomendação: reveja os conceitos básicos de HTML.\n";
+      resultado += "🔗 Consulte: https://developer.mozilla.org/pt-BR/docs/Web/HTML\n";
+    }
+
+    resultadoDiv.textContent = resultado;
+    resultadoDiv.classList.remove("d-none");
+  };
+
+  reader.onerror = function () {
+    alert("Erro ao ler o arquivo.");
+  };
+
+  reader.readAsText(file);
+}
+</script>
+
+</body>
+</html>
